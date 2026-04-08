@@ -4,20 +4,27 @@ import { config } from "../config/env.js";
 const tick = (name) => "`" + String(name).replace(/`/g, "``") + "`";
 
 export async function ensureDatabase() {
-  const admin = await mysql.createConnection({
-    host: config.db.host,
-    port: config.db.port,
-    user: config.db.user,
-    password: config.db.password,
-    multipleStatements: false,
-    charset: "utf8mb4",
-  });
-  await admin.query(
-    `CREATE DATABASE IF NOT EXISTS ${tick(
-      config.db.database
-    )} CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`
-  );
-  await admin.end();
+  try {
+    const admin = await mysql.createConnection({
+      host: config.db.host,
+      port: config.db.port,
+      user: config.db.user,
+      password: config.db.password,
+      multipleStatements: false,
+      charset: "utf8mb4",
+    });
+    await admin.query(
+      `CREATE DATABASE IF NOT EXISTS ${tick(
+        config.db.database
+      )} CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`
+    );
+    await admin.end();
+  } catch (e) {
+    console.warn(
+      "No se pudo asegurar la existencia de la base de datos (posible falta de permisos). Continuando..."
+    );
+    console.warn("Detalle:", e.message);
+  }
 }
 
 export let pool;
