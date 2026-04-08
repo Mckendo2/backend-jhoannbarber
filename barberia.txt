@@ -1,0 +1,594 @@
+CREATE DATABASE IF NOT EXISTS barberia DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE barberia;
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  correo_electronico VARCHAR(190) NOT NULL UNIQUE,
+  pin VARCHAR(255) NOT NULL,
+  nombres VARCHAR(100) NULL,
+  apellidos VARCHAR(100) NULL,
+  telefono VARCHAR(30) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  CONSTRAINT fk_usuarios_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_usuarios_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS roles (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL UNIQUE,
+  descripcion VARCHAR(255) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  CONSTRAINT fk_roles_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_roles_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS permisos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  clave VARCHAR(150) NOT NULL UNIQUE,
+  descripcion VARCHAR(255) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  CONSTRAINT fk_permisos_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_permisos_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS rol_permiso (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  rol_id INT UNSIGNED NOT NULL,
+  permiso_id INT UNSIGNED NOT NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_rol_permiso (rol_id, permiso_id),
+  CONSTRAINT fk_rp_rol FOREIGN KEY (rol_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_rp_permiso FOREIGN KEY (permiso_id) REFERENCES permisos(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_rp_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_rp_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS usuario_rol (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT UNSIGNED NOT NULL,
+  rol_id INT UNSIGNED NOT NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_usuario_rol (usuario_id, rol_id),
+  CONSTRAINT fk_ur_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_ur_rol FOREIGN KEY (rol_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_ur_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_ur_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS usuario_permiso (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT UNSIGNED NOT NULL,
+  permiso_id INT UNSIGNED NOT NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_usuario_permiso (usuario_id, permiso_id),
+  CONSTRAINT fk_up_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_up_permiso FOREIGN KEY (permiso_id) REFERENCES permisos(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_up_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_up_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS clientes (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombres VARCHAR(100) NULL,
+  apellidos VARCHAR(100) NULL,
+  correo_electronico VARCHAR(190) NULL,
+  telefono VARCHAR(30) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_clientes_email (correo_electronico),
+  CONSTRAINT fk_clientes_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_clientes_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS productos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(150) NOT NULL,
+  descripcion TEXT NULL,
+  sku VARCHAR(80) NULL,
+  precio_unitario DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  costo_unitario DECIMAL(12,2) NULL,
+  stock INT UNSIGNED NOT NULL DEFAULT 0,
+  foto_principal VARCHAR(500) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_productos_nombre (nombre),
+  UNIQUE KEY uk_productos_sku (sku),
+  CONSTRAINT fk_productos_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_productos_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS producto_fotos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  producto_id INT UNSIGNED NOT NULL,
+  url VARCHAR(500) NOT NULL,
+  es_principal TINYINT(1) NOT NULL DEFAULT 0,
+  orden SMALLINT UNSIGNED NOT NULL DEFAULT 1,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_pf_producto (producto_id),
+  CONSTRAINT fk_pf_producto FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_pf_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_pf_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS servicios (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(150) NOT NULL,
+  descripcion TEXT NULL,
+  duracion_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 60,
+  precio DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  foto_principal VARCHAR(500) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  esta_publicado TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_servicios_nombre (nombre),
+  CONSTRAINT fk_servicios_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_servicios_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS barbero_servicios (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barbero_id INT UNSIGNED NOT NULL,
+  servicio_id INT UNSIGNED NOT NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_barbero_servicio (barbero_id, servicio_id),
+  CONSTRAINT fk_bs_barbero FOREIGN KEY (barbero_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_bs_servicio FOREIGN KEY (servicio_id) REFERENCES servicios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_bs_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_bs_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS barbero_horarios (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barbero_id INT UNSIGNED NOT NULL,
+  dia_semana TINYINT UNSIGNED NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fin TIME NOT NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_bh (barbero_id, dia_semana, hora_inicio, hora_fin),
+  CONSTRAINT fk_bh_barbero FOREIGN KEY (barbero_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_bh_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_bh_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS barbero_bloqueos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barbero_id INT UNSIGNED NOT NULL,
+  fecha DATE NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fin TIME NOT NULL,
+  motivo VARCHAR(150) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_bb_barbero_fecha (barbero_id, fecha),
+  CONSTRAINT fk_bb_barbero FOREIGN KEY (barbero_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_bb_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_bb_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS citas (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  cliente_id INT UNSIGNED NULL,
+  barbero_id INT UNSIGNED NOT NULL,
+  fecha DATE NOT NULL,
+  hora TIME NOT NULL,
+  duracion_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 60,
+  estado ENUM('pendiente','confirmada','cancelada','no_asistio','completada') NOT NULL DEFAULT 'pendiente',
+  notas TEXT NULL,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_cita_barbero_fecha_hora (barbero_id, fecha, hora),
+  INDEX idx_citas_barbero_fecha (barbero_id, fecha),
+  CONSTRAINT fk_citas_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_citas_barbero FOREIGN KEY (barbero_id) REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_citas_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_citas_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS cita_servicio (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  cita_id INT UNSIGNED NOT NULL,
+  servicio_id INT UNSIGNED NOT NULL,
+  precio_aplicado DECIMAL(12,2) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_cita_servicio (cita_id, servicio_id),
+  CONSTRAINT fk_cs_cita FOREIGN KEY (cita_id) REFERENCES citas(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_cs_servicio FOREIGN KEY (servicio_id) REFERENCES servicios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_cs_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_cs_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS gasto_categorias (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(120) NOT NULL UNIQUE,
+  descripcion VARCHAR(255) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  CONSTRAINT fk_gc_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_gc_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS gastos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  fecha DATE NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
+  descripcion VARCHAR(255) NOT NULL,
+  gasto_categoria_id INT UNSIGNED NOT NULL,
+  comprobante_url VARCHAR(500) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_gastos_fecha (fecha),
+  CONSTRAINT fk_gastos_categoria FOREIGN KEY (gasto_categoria_id) REFERENCES gasto_categorias(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_gastos_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_gastos_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS movimientos_financieros (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  fecha DATETIME NOT NULL,
+  tipo ENUM('ingreso','egreso') NOT NULL,
+  categoria VARCHAR(120) NULL,
+  monto DECIMAL(12,2) NOT NULL,
+  fuente_tipo VARCHAR(60) NULL,
+  fuente_id INT UNSIGNED NULL,
+  nota VARCHAR(255) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_mf_fuente (fuente_tipo, fuente_id),
+  INDEX idx_mf_fecha (fecha),
+  CONSTRAINT fk_mf_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_mf_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS auditoria_eventos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT UNSIGNED NULL,
+  metodo VARCHAR(10) NOT NULL,
+  ruta VARCHAR(191) NOT NULL,
+  accion VARCHAR(191) NULL,
+  ip VARCHAR(45) NULL,
+  user_agent TEXT NULL,
+  payload JSON NULL,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_aud_usuario (usuario_id),
+  CONSTRAINT fk_aud_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_aud_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_aud_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS sesiones_login (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT UNSIGNED NOT NULL,
+  ip VARCHAR(45) NULL,
+  user_agent TEXT NULL,
+  inicio_en DATETIME NOT NULL,
+  fin_en DATETIME NULL,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_ses_usuario (usuario_id),
+  CONSTRAINT fk_ses_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_ses_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_ses_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+
+CREATE TABLE IF NOT EXISTS ventas (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  cliente_id INT UNSIGNED NULL,
+  cajero_id INT UNSIGNED NULL,
+  fecha_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  estado ENUM('abierta','pagada','anulada') NOT NULL DEFAULT 'abierta',
+  total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  metodo_pago ENUM('efectivo','tarjeta','transferencia','mixto') NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_ventas_fecha (fecha_hora),
+  CONSTRAINT fk_ventas_cliente FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_ventas_cajero FOREIGN KEY (cajero_id) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_ventas_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_ventas_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS venta_servicios (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  venta_id INT UNSIGNED NOT NULL,
+  cita_id INT UNSIGNED NULL,
+  servicio_id INT UNSIGNED NOT NULL,
+  barbero_id INT UNSIGNED NOT NULL,
+  duracion_minutos SMALLINT UNSIGNED NOT NULL,
+  precio_unitario DECIMAL(12,2) NOT NULL,
+  subtotal DECIMAL(12,2) NOT NULL,
+  comision_pct DECIMAL(5,2) NULL,
+  comision_monto DECIMAL(12,2) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_vs_venta (venta_id),
+  INDEX idx_vs_barbero (barbero_id),
+  CONSTRAINT fk_vs_venta FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_vs_cita FOREIGN KEY (cita_id) REFERENCES citas(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_vs_servicio FOREIGN KEY (servicio_id) REFERENCES servicios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_vs_barbero FOREIGN KEY (barbero_id) REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_vs_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_vs_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS venta_productos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  venta_id INT UNSIGNED NOT NULL,
+  producto_id INT UNSIGNED NOT NULL,
+  cantidad INT UNSIGNED NOT NULL,
+  precio_unitario DECIMAL(12,2) NOT NULL,
+  subtotal DECIMAL(12,2) NOT NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_vp_venta (venta_id),
+  CONSTRAINT fk_vp_venta FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_vp_producto FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_vp_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_vp_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS pagos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  venta_id INT UNSIGNED NOT NULL,
+  fecha_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  metodo ENUM('efectivo','tarjeta','transferencia') NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
+  referencia VARCHAR(120) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  INDEX idx_pagos_venta (venta_id),
+  CONSTRAINT fk_pagos_venta FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_pagos_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_pagos_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS informacion_contacto (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  telefono VARCHAR(30) NOT NULL,
+  direccion VARCHAR(255) NOT NULL,
+  facebook VARCHAR(255) NULL,
+  instagram VARCHAR(255) NULL,
+  tiktok VARCHAR(255) NULL,
+  youtube VARCHAR(255) NULL,
+  whatsapp VARCHAR(255) NULL,
+  horarios_atencion VARCHAR(255) NOT NULL,
+  dias_atencion VARCHAR(255) NOT NULL,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS configuracion_comisiones (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  pct_por_defecto DECIMAL(5,2) NOT NULL DEFAULT 50.00, -- porcentaje para el barbero
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO configuracion_comisiones (id, pct_por_defecto)
+SELECT 1, 50.00
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM configuracion_comisiones WHERE id = 1);
+
+CREATE TABLE IF NOT EXISTS liquidaciones_semanales (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barbero_id INT UNSIGNED NOT NULL,
+  semana_inicio DATE NOT NULL, -- lunes de la semana
+  total_generado DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  monto_barbero DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  monto_barberia DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  pagado TINYINT(1) NOT NULL DEFAULT 0,
+  pagado_en DATETIME NULL,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_liq_barbero_semana (barbero_id, semana_inicio),
+  CONSTRAINT fk_liq_barbero FOREIGN KEY (barbero_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_ventas_after_update_establecer_comisiones
+AFTER UPDATE ON ventas
+FOR EACH ROW
+BEGIN
+  DECLARE v_pct_default DECIMAL(5,2);
+
+  -- obtener porcentaje por defecto (si no existe, usar 50.00)
+  SELECT COALESCE( (SELECT pct_por_defecto FROM configuracion_comisiones LIMIT 1), 50.00 ) 
+    INTO v_pct_default;
+
+  IF NEW.estado = 'pagada' AND (OLD.estado IS NULL OR OLD.estado <> 'pagada') THEN
+    UPDATE venta_servicios vs
+    SET
+      vs.comision_pct = COALESCE(vs.comision_pct, v_pct_default),
+      vs.comision_monto = COALESCE(
+        vs.comision_monto,
+        ROUND(vs.subtotal * COALESCE(vs.comision_pct, v_pct_default) / 100, 2)
+      )
+    WHERE vs.venta_id = NEW.id;
+  END IF;
+END $$
+
+CREATE TABLE IF NOT EXISTS mensajes_contacto ( id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, nombre VARCHAR(190) NOT NULL, email VARCHAR(190) NOT NULL, celular VARCHAR(50) DEFAULT NULL, asunto VARCHAR(255) DEFAULT NULL, mensaje TEXT NOT NULL, origen_ip VARCHAR(45) DEFAULT NULL, user_agent TEXT DEFAULT NULL, leido TINYINT(1) NOT NULL DEFAULT 0, creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_mc_email (email), INDEX idx_mc_leido (leido), INDEX idx_mc_fecha (creado_en) ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS reglas (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  titulo VARCHAR(150) NOT NULL,
+  texto TEXT NOT NULL,
+  categoria VARCHAR(100) DEFAULT 'General',
+  orden INT UNSIGNED NOT NULL DEFAULT 0,
+  esta_activa TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  CONSTRAINT fk_reglas_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_reglas_actualizado_por FOREIGN KEY (actualizado_por) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO reglas (titulo, texto, categoria, orden)
+VALUES
+('Reglas Generales',
+'1. Llegar puntualmente al trabajo y respetar los horarios establecidos.\n2. Mantener un ambiente de trabajo limpio y organizado.\n3. Tratar a los clientes con respeto y amabilidad en todo momento.\n4. Mantener la confidencialidad de la información de los clientes.\n5. Cumplir con las políticas y procedimientos de la barbería.',
+'Generales', 0),
+
+('Reglas de Higiene y Seguridad',
+'1. Lavar las manos antes y después de cada servicio.\n2. Utilizar guantes desechables para cada servicio.\n3. Desinfectar las herramientas y equipos después de cada uso.\n4. Mantener el área de trabajo libre de obstáculos y peligros.\n5. Utilizar productos de limpieza y desinfección adecuados.',
+'Higiene', 1),
+
+('Reglas de Servicio al Cliente',
+'1. Saludar a los clientes al llegar y despedirse al irse.\n2. Ofrecer refrescos o bebidas a los clientes mientras esperan.\n3. Explicar los servicios y precios de manera clara y transparente.\n4. Asegurarse de que los clientes estén satisfechos con el servicio antes de que se vayan.\n5. Mantener una actitud positiva y amable en todo momento.',
+'Servicio', 2),
+
+('Reglas de Comunicación',
+'1. Mantener una comunicación clara y respetuosa con los clientes y colegas.\n2. Informar a los clientes sobre cualquier retraso o cambio en el servicio.\n3. Escuchar atentamente las necesidades y preocupaciones de los clientes.\n4. Mantener una comunicación abierta y honesta con los colegas y superiores.',
+'Comunicación', 3),
+
+('Reglas de Equipos y Herramientas',
+'1. Utilizar los equipos y herramientas de manera adecuada y segura.\n2. Mantener los equipos y herramientas en buen estado y limpios.\n3. Informar a los superiores sobre cualquier problema o daño en los equipos o herramientas.',
+'Equipos', 4),
+
+('Reglas de Desarrollo Profesional',
+'1. Asistir a capacitaciones y talleres para mejorar las habilidades y conocimientos.\n2. Buscar retroalimentación y comentarios de los clientes y colegas para mejorar el servicio.\n3. Mantener actualizados los conocimientos y habilidades en técnicas de corte y estilo.\n4. Participar en actividades de equipo y colaboración para mejorar el servicio.',
+'Desarrollo', 5),
+
+('Reglas de Responsabilidad y Compromiso',
+'1. Cumplir con las responsabilidades y tareas asignadas.\n2. Mantener un compromiso con la calidad y excelencia en el servicio.\n3. Representar a Jhoann Barber de manera profesional y ética en todo momento.',
+'Responsabilidad', 6);
+
+CREATE TABLE IF NOT EXISTS barbero_contratos (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barbero_id INT UNSIGNED NOT NULL,
+  fecha_inicio DATE NOT NULL,
+  fecha_fin DATE NULL,
+  comprobante_url VARCHAR(500) NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  actualizado_por INT UNSIGNED NULL,
+  UNIQUE KEY uk_contrato_barbero (barbero_id, esta_activo),
+  CONSTRAINT fk_bc_barbero FOREIGN KEY (barbero_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS barbero_sanciones (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  barbero_id INT UNSIGNED NOT NULL,
+  motivo VARCHAR(255) NOT NULL,
+  fecha DATE NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
+  creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  creado_por INT UNSIGNED NULL,
+  esta_activo TINYINT(1) NOT NULL DEFAULT 1,
+  CONSTRAINT fk_bs_barbero FOREIGN KEY (barbero_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE servicios
+  ADD COLUMN comision_pct DECIMAL(5,2) NULL AFTER precio;
+
+DROP TRIGGER IF EXISTS trg_ventas_after_update_establecer_comisiones;
+
+DELIMITER $$
+CREATE TRIGGER trg_ventas_after_update_establecer_comisiones
+AFTER UPDATE ON ventas
+FOR EACH ROW
+BEGIN
+  DECLARE v_pct_default DECIMAL(5,2);
+
+  SELECT COALESCE((SELECT pct_por_defecto FROM configuracion_comisiones LIMIT 1), 50.00)
+    INTO v_pct_default;
+
+  IF NEW.estado = 'pagada' AND (OLD.estado IS NULL OR OLD.estado <> 'pagada') THEN
+    UPDATE venta_servicios vs
+    JOIN servicios s ON s.id = vs.servicio_id
+    SET
+      vs.comision_pct = COALESCE(vs.comision_pct, s.comision_pct, v_pct_default),
+      vs.comision_monto = COALESCE(
+        vs.comision_monto,
+        ROUND(vs.subtotal * COALESCE(vs.comision_pct, s.comision_pct, v_pct_default) / 100, 2)
+      )
+    WHERE vs.venta_id = NEW.id;
+  END IF;
+END $$
+DELIMITER ;

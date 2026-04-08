@@ -1,0 +1,159 @@
+<!-- src/templates/reportes/report-base.ejs -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title><%= title %></title>
+    <style>
+      :root {
+        --accent: #0f172a;
+        --muted: #6b7280;
+        --card: #ffffff;
+        --bg: #f7f9fb;
+        --border: #e6eef7;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        font-family: Inter, Arial, Helvetica, sans-serif;
+        color: var(--accent);
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 18px auto;
+        padding: 18px;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 10px;
+        padding: 18px;
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+        border: 1px solid var(--border);
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .title {
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+      }
+      th,
+      td {
+        padding: 10px 8px;
+        border-bottom: 1px solid #eef6ff;
+        font-size: 13px;
+      }
+      th {
+        background: #fbfdff;
+        text-align: left;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      tbody tr:nth-child(even) {
+        background: #fbfdff;
+      }
+      .right {
+        text-align: right;
+      }
+      .footer {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .badge {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #1e40af;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      @media print {
+        body {
+          background: #fff;
+        }
+        .wrap {
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="header">
+          <div>
+            <div class="title"><%= title %></div>
+            <div class="meta">
+              Periodo: <strong><%= desde %></strong> —
+              <strong><%= hasta %></strong>
+            </div>
+          </div>
+          <div>
+            <div class="meta">Generado: <%= generatedAt %></div>
+            <div style="height: 6px"></div>
+            <div class="badge"><%= generatedBy || 'Sistema' %></div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <% headers.forEach(function(h){ %>
+                <th class="<%= h.align==='right' ? 'right' : '' %>">
+                  <%= h.label %>
+                </th>
+                <% }) %>
+              </tr>
+            </thead>
+            <tbody>
+              <% if(!rows || !rows.length) { %>
+              <tr>
+                <td colspan="<%= headers.length %>">No hay datos</td>
+              </tr>
+              <% } else { %> <% rows.forEach(function(row){ %>
+              <tr>
+                <% row.forEach(function(cell){ %>
+                <td class="<%= cell.align==='right' ? 'right' : '' %>">
+                  <%- cell.html %>
+                </td>
+                <% }) %>
+              </tr>
+              <% }) %> <% } %>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="footer">
+          <div>
+            Reporte generado por
+            <strong><%= generatedBy || 'Sistema' %></strong>
+          </div>
+          <div class="meta">
+            © <%= new Date().getFullYear() %> <%= negocio || '' %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
