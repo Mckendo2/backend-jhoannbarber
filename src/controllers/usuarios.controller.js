@@ -170,28 +170,11 @@ export async function registrarUsuario(req, res) {
 
     await conn.commit();
 
-    let correoEnviado = false;
-    try {
-      const html = credencialesHtml({
-        nombre: d.nombres || "",
-        correo: d.correo_electronico,
-        pin: pinPlano,
-        rol: rol.nombre,
-        loginUrl: config.appUrl || "",
-      });
-      await enviarCorreo({
-        para: d.correo_electronico,
-        asunto: "Tus credenciales de acceso",
-        html,
-        texto: `Bienvenido. Correo: ${d.correo_electronico} PIN: ${pinPlano} Rol: ${rol.nombre} Acceso: ${config.appUrl}`,
-      });
-      correoEnviado = true;
-    } catch (mailErr) {
-      throw mailErr;
-    }
-
+    // La contraseña se devuelve en la respuesta para que el frontend genere el PDF.
+    // Ya no se usa Mailtrap; el correo electrónico es solo referencial.
     return res.status(201).json({
       mensaje: "Usuario registrado",
+      contrasena: pinPlano,
       usuario: {
         id: usuarioId,
         correo_electronico: d.correo_electronico,
@@ -202,7 +185,6 @@ export async function registrarUsuario(req, res) {
       },
       rol: { id: rol.id, nombre: rol.nombre },
       permisos_desde_rol: permsRol.map((x) => x.clave).sort(),
-      correo_enviado: correoEnviado,
     });
   } catch (e) {
     await conn.rollback();
