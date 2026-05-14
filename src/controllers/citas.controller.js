@@ -72,7 +72,7 @@ export async function barberosDisponibles(req, res) {
   const fecha = String(req.query.fecha || "");
   const hora = String(req.query.hora || "");
 
-  const rawSrv = req.query.servicios ?? [];
+  const rawSrv = req.query.servicios ?? req.query["servicios[]"] ?? [];
   const servicios = []
     .concat(rawSrv)
     .flatMap((v) => (Array.isArray(v) ? v : String(v).split(",")))
