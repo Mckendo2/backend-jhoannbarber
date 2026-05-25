@@ -28,8 +28,8 @@ export async function obtenerComisionesSemana(req, res) {
         COALESCE(u.apellidos, '') AS apellidos,
         ? AS semana_inicio,
         ROUND(IFNULL(SUM(vs.subtotal),0),2) AS total_generado,
-        ROUND(IFNULL(SUM(COALESCE(vs.comision_monto, vs.subtotal * (cc.pct_por_defecto/100))),0),2) AS monto_barbero,
-        ROUND(IFNULL(SUM(vs.subtotal),0) - IFNULL(SUM(COALESCE(vs.comision_monto, vs.subtotal * (cc.pct_por_defecto/100))),0),2) AS monto_barberia,
+        ROUND(IFNULL(SUM(COALESCE(vs.comision_monto, vs.subtotal * (cc.pct_por_defecto/100))),0),2) AS monto_barbero_bruto,
+        ROUND(IFNULL((SELECT SUM(bs.monto) FROM barbero_sanciones bs WHERE bs.barbero_id = vs.barbero_id AND bs.esta_activo = 1 AND bs.fecha >= ? AND bs.fecha <= ?), 0), 2) AS total_sanciones,
         COALESCE(ls.pagado, 0) AS pagado,
         ls.pagado_en
       FROM venta_servicios vs
@@ -48,22 +48,34 @@ export async function obtenerComisionesSemana(req, res) {
     const [rows] = await conn.query(sql, [
       fechaInicio,
       fechaInicio,
+      fechaFin,
+      fechaInicio,
       fechaInicio + " 00:00:00",
       fechaFin + " 23:59:59",
     ]);
     conn.release();
 
-    const normalized = (rows || []).map((r) => ({
-      barbero_id: r.barbero_id,
-      nombres: r.nombres,
-      apellidos: r.apellidos,
-      semana_inicio: r.semana_inicio,
-      total_generado: Number(r.total_generado),
-      monto_barbero: Number(r.monto_barbero),
-      monto_barberia: Number(r.monto_barberia),
-      pagado: Boolean(r.pagado),
-      pagado_en: r.pagado_en ? new Date(r.pagado_en).toISOString() : null,
-    }));
+    const normalized = (rows || []).map((r) => {
+      const total_generado = Number(r.total_generado);
+      const monto_barbero_bruto = Number(r.monto_barbero_bruto);
+      const total_sanciones = Number(r.total_sanciones);
+      
+      const monto_barbero = Math.max(0, monto_barbero_bruto - total_sanciones);
+      const monto_barberia = total_generado - monto_barbero;
+
+      return {
+        barbero_id: r.barbero_id,
+        nombres: r.nombres,
+        apellidos: r.apellidos,
+        semana_inicio: r.semana_inicio,
+        total_generado,
+        total_sanciones,
+        monto_barbero,
+        monto_barberia,
+        pagado: Boolean(r.pagado),
+        pagado_en: r.pagado_en ? new Date(r.pagado_en).toISOString() : null,
+      };
+    });
 
     return res.json(normalized);
   } catch (e) {
@@ -73,38 +85,46 @@ export async function obtenerComisionesSemana(req, res) {
 
 export async function pagarComision(req, res) {
   try {
-    const { barbero_id, semana_inicio } = req.body;
+    const { barbero_id, semana_inicio, fecha_fin } = req.body;
     if (!barbero_id || !semana_inicio)
       return res
         .status(400)
         .json({ mensaje: "barbero_id y semana_inicio son requeridos" });
 
-    const semanaFinDate = new Date(semana_inicio + "T00:00:00Z");
-    semanaFinDate.setUTCDate(semanaFinDate.getUTCDate() + 7);
-    const semanaFin = semanaFinDate.toISOString().slice(0, 10);
+    let semanaFin = fecha_fin;
+    if (!semanaFin) {
+      const semanaFinDate = new Date(semana_inicio + "T00:00:00Z");
+      semanaFinDate.setUTCDate(semanaFinDate.getUTCDate() + 7);
+      semanaFin = semanaFinDate.toISOString().slice(0, 10);
+    }
 
     const sqlTotales = `
       SELECT
         ROUND(IFNULL(SUM(vs.subtotal),0),2) AS total_generado,
-        ROUND(IFNULL(SUM(COALESCE(vs.comision_monto, vs.subtotal * (cc.pct_por_defecto/100))),0),2) AS monto_barbero
+        ROUND(IFNULL(SUM(COALESCE(vs.comision_monto, vs.subtotal * (cc.pct_por_defecto/100))),0),2) AS monto_barbero_bruto,
+        ROUND(IFNULL((SELECT SUM(bs.monto) FROM barbero_sanciones bs WHERE bs.barbero_id = ? AND bs.esta_activo = 1 AND bs.fecha >= ? AND bs.fecha <= ?), 0), 2) AS total_sanciones
       FROM venta_servicios vs
       JOIN ventas v ON vs.venta_id = v.id
       CROSS JOIN configuracion_comisiones cc
-      WHERE vs.barbero_id = ? AND v.estado = 'pagada' AND v.fecha_hora >= ? AND v.fecha_hora < ?
+      WHERE vs.barbero_id = ? AND v.estado = 'pagada' AND v.fecha_hora >= ? AND v.fecha_hora <= ?
     `;
 
     const conn = await pool.getConnection();
     const [rows] = await conn.query(sqlTotales, [
       barbero_id,
+      semana_inicio,
+      semanaFin,
+      barbero_id,
       semana_inicio + " 00:00:00",
-      semanaFin + " 00:00:00",
+      semanaFin + " 23:59:59",
     ]);
 
     const total_generado = parseFloat(rows[0].total_generado || 0);
-    const monto_barbero = parseFloat(rows[0].monto_barbero || 0);
-    const monto_barberia = parseFloat(
-      (total_generado - monto_barbero).toFixed(2)
-    );
+    const monto_barbero_bruto = parseFloat(rows[0].monto_barbero_bruto || 0);
+    const total_sanciones = parseFloat(rows[0].total_sanciones || 0);
+    
+    const monto_barbero = parseFloat(Math.max(0, monto_barbero_bruto - total_sanciones).toFixed(2));
+    const monto_barberia = parseFloat((total_generado - monto_barbero).toFixed(2));
 
     const sqlUpsert = `
       INSERT INTO liquidaciones_semanales (barbero_id, semana_inicio, total_generado, monto_barbero, monto_barberia, pagado, pagado_en)
@@ -129,6 +149,7 @@ export async function pagarComision(req, res) {
       barbero_id,
       semana_inicio,
       total_generado,
+      total_sanciones,
       monto_barbero,
       monto_barberia,
       pagado: true,
