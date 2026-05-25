@@ -10,11 +10,17 @@ function calcularSemanaInicio(dateStr) {
 
 export async function obtenerComisionesSemana(req, res) {
   try {
-    const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
-    const semanaInicio = calcularSemanaInicio(fecha);
-    const semanaFinDate = new Date(semanaInicio + "T00:00:00Z");
-    semanaFinDate.setUTCDate(semanaFinDate.getUTCDate() + 7);
-    const semanaFin = semanaFinDate.toISOString().slice(0, 10);
+    let fechaInicio = req.query.fechaInicio;
+    let fechaFin = req.query.fechaFin;
+
+    if (!fechaInicio || !fechaFin) {
+      const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+      fechaInicio = calcularSemanaInicio(fecha);
+      const semanaFinDate = new Date(fechaInicio + "T00:00:00Z");
+      semanaFinDate.setUTCDate(semanaFinDate.getUTCDate() + 7);
+      fechaFin = semanaFinDate.toISOString().slice(0, 10);
+    }
+
     const sql = `
       SELECT
         vs.barbero_id,
@@ -33,17 +39,17 @@ export async function obtenerComisionesSemana(req, res) {
       LEFT JOIN liquidaciones_semanales ls ON ls.barbero_id = vs.barbero_id AND ls.semana_inicio = ?
       WHERE v.estado = 'pagada'
         AND v.fecha_hora >= ?
-        AND v.fecha_hora < ?
+        AND v.fecha_hora <= ?
       GROUP BY vs.barbero_id, ls.pagado, ls.pagado_en
       ORDER BY total_generado DESC
     `;
 
     const conn = await pool.getConnection();
     const [rows] = await conn.query(sql, [
-      semanaInicio,
-      semanaInicio,
-      semanaInicio + " 00:00:00",
-      semanaFin + " 00:00:00",
+      fechaInicio,
+      fechaInicio,
+      fechaInicio + " 00:00:00",
+      fechaFin + " 23:59:59",
     ]);
     conn.release();
 
