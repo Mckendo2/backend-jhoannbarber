@@ -95,12 +95,14 @@ export async function crearProducto(req, res) {
         req.usuario?.sub || null,
       ]
     );
-    const [row] = await pool.execute(
-      `SELECT id,nombre,descripcion,sku,precio_unitario,costo_unitario,stock,foto_principal,esta_activo,creado_en
-       FROM productos WHERE id=?`,
+    const [rows] = await pool.execute(
+      `SELECT p.id, p.nombre, p.descripcion, p.sku, p.precio_unitario, p.costo_unitario, p.stock, 
+              COALESCE((SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1), p.foto_principal) as foto_principal,
+              p.esta_activo, p.creado_en 
+       FROM productos p WHERE p.id=?`,
       [r.insertId]
     );
-    res.status(201).json({ data: mapProducto(row[0]) });
+    res.status(201).json({ data: mapProducto(rows[0]) });
   } catch (e) {
     res.status(400).json({ mensaje: e.message || "Error" });
   }
@@ -128,8 +130,10 @@ export async function listarProductos(req, res) {
     vals
   );
   const [rows] = await pool.query(
-    `SELECT id,nombre,sku,precio_unitario,costo_unitario,stock,foto_principal,esta_activo,creado_en
-     FROM productos ${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
+    `SELECT p.id, p.nombre, p.sku, p.precio_unitario, p.costo_unitario, p.stock, 
+            COALESCE((SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1), p.foto_principal) as foto_principal,
+            p.esta_activo, p.creado_en
+     FROM productos p ${where} ORDER BY p.id DESC LIMIT ? OFFSET ?`,
     [...vals, per, (page - 1) * per]
   );
   res.json({
@@ -141,8 +145,10 @@ export async function listarProductos(req, res) {
 export async function detalleProducto(req, res) {
   const id = Number(req.params.id);
   const [r] = await pool.execute(
-    `SELECT id,nombre,descripcion,sku,precio_unitario,costo_unitario,stock,foto_principal,esta_activo,creado_en,actualizado_en
-     FROM productos WHERE id=?`,
+    `SELECT p.id, p.nombre, p.descripcion, p.sku, p.precio_unitario, p.costo_unitario, p.stock, 
+            COALESCE((SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1), p.foto_principal) as foto_principal,
+            p.esta_activo, p.creado_en, p.actualizado_en
+     FROM productos p WHERE p.id=?`,
     [id]
   );
   if (!r.length) return res.status(404).json({ mensaje: "No encontrado" });
@@ -200,13 +206,15 @@ export async function actualizarProducto(req, res) {
         id,
       ]
     );
-    const [row] = await pool.execute(
-      `SELECT id,nombre,descripcion,sku,precio_unitario,costo_unitario,stock,foto_principal,esta_activo
-       FROM productos WHERE id=?`,
+    const [rows] = await pool.execute(
+      `SELECT p.id, p.nombre, p.descripcion, p.sku, p.precio_unitario, p.costo_unitario, p.stock, 
+              COALESCE((SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1), p.foto_principal) as foto_principal,
+              p.esta_activo, p.creado_en 
+       FROM productos p WHERE p.id=?`,
       [id]
     );
-    if (!row.length) return res.status(404).json({ mensaje: "No encontrado" });
-    res.json({ data: mapProducto(row[0]) });
+    if (!rows.length) return res.status(404).json({ mensaje: "No encontrado" });
+    res.json({ data: mapProducto(rows[0]) });
   } catch (e) {
     res.status(400).json({ mensaje: e.message || "Error" });
   }
