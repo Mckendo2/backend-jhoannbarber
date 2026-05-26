@@ -2,6 +2,14 @@ import { z } from "zod";
 import { pool } from "../db/mysql.js";
 import fs from "fs/promises";
 import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+
+// Configuración de Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 function toUrl(fileName) {
   return `/upload/productos/${fileName}`;
@@ -9,10 +17,12 @@ function toUrl(fileName) {
 function toAbs(url) {
   return path.join(process.cwd(), url.replace(/^\//, ""));
 }
-async function borrarArchivo(url) {
+async function borrarArchivoLocal(url) {
   try {
-    await fs.unlink(toAbs(url));
-  } catch {}
+    if (url.startsWith('/upload/')) {
+      await fs.unlink(toAbs(url));
+    }
+  } catch { }
 }
 
 const createSchema = z.object({
@@ -221,7 +231,17 @@ export async function agregarFotos(req, res) {
     return res.status(422).json({ mensaje: "Sin archivos" });
   try {
     for (const f of req.files) {
-      const url = toUrl(path.basename(f.path));
+      // Subir a Cloudinary
+      const result = await cloudinary.uploader.upload(f.path, {
+        folder: "jhoann-barber/productos",
+      });
+      const url = result.secure_url;
+
+      // Eliminar archivo local
+      try {
+        await fs.unlink(f.path);
+      } catch { }
+
       await pool.execute(
         "INSERT INTO producto_fotos (producto_id,url,es_principal,orden,esta_activo,creado_por,actualizado_por) VALUES (?,?,?,?,?,?,?)",
         [id, url, 0, 1, 1, req.usuario?.sub || null, req.usuario?.sub || null]
@@ -268,7 +288,19 @@ export async function eliminarFoto(req, res) {
         );
       }
     }
-    await borrarArchivo(f[0].url);
+
+    // Eliminar de Cloudinary o local
+    if (f[0].url.includes("cloudinary.com")) {
+      try {
+        const publicIdMatch = f[0].url.match(/\/v\d+\/(.+)\.[a-zA-Z]+$/);
+        if (publicIdMatch && publicIdMatch[1]) {
+          await cloudinary.uploader.destroy(publicIdMatch[1]);
+        }
+      } catch { }
+    } else {
+      await borrarArchivoLocal(f[0].url);
+    }
+
     res.json({ mensaje: "Eliminado" });
   } catch (e) {
     res.status(400).json({ mensaje: e.message || "Error" });

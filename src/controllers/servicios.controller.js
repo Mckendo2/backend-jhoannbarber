@@ -42,7 +42,7 @@ async function borrarArchivoLocal(url) {
     if (url.startsWith('/upload/')) {
       await fs.unlink(toAbs(url));
     }
-  } catch {}
+  } catch { }
 }
 
 export async function crearServicio(req, res) {
@@ -298,7 +298,7 @@ export async function agregarImagenServicio(req, res) {
     // Eliminar el archivo local subido temporalmente por multer
     try {
       await fs.unlink(req.file.path);
-    } catch {}
+    } catch { }
 
     // Eliminar foto anterior si existe (en local o en Cloudinary)
     if (old[0].foto_principal) {
@@ -308,7 +308,7 @@ export async function agregarImagenServicio(req, res) {
           if (publicIdMatch && publicIdMatch[1]) {
             await cloudinary.uploader.destroy(publicIdMatch[1]);
           }
-        } catch {}
+        } catch { }
       } else {
         await borrarArchivoLocal(old[0].foto_principal);
       }
@@ -324,7 +324,7 @@ export async function agregarImagenServicio(req, res) {
     // Intentar borrar archivo temporal si la subida falló
     try {
       await fs.unlink(req.file.path);
-    } catch {}
+    } catch { }
     return res.status(400).json({ mensaje: e.message || "Error al subir a Cloudinary" });
   }
 }
@@ -347,7 +347,7 @@ export async function eliminarImagenServicio(req, res) {
       "UPDATE servicios SET foto_principal=NULL, actualizado_por=?, actualizado_en=NOW() WHERE id=?",
       [req.usuario?.sub || null, id]
     );
-    
+
     // Eliminar de Cloudinary o local
     if (url.includes("cloudinary.com")) {
       try {
@@ -355,7 +355,7 @@ export async function eliminarImagenServicio(req, res) {
         if (publicIdMatch && publicIdMatch[1]) {
           await cloudinary.uploader.destroy(publicIdMatch[1]);
         }
-      } catch {}
+      } catch { }
     } else {
       await borrarArchivoLocal(url);
     }
