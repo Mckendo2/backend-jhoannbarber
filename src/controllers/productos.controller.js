@@ -97,7 +97,11 @@ export async function crearProducto(req, res) {
     );
     const [rows] = await pool.execute(
       `SELECT p.id, p.nombre, p.descripcion, p.sku, p.precio_unitario, p.costo_unitario, p.stock, 
-              COALESCE((SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1), p.foto_principal) as foto_principal,
+              COALESCE(
+                (SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1),
+                (SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id ORDER BY pf.id DESC LIMIT 1),
+                p.foto_principal
+              ) as foto_principal,
               p.esta_activo, p.creado_en 
        FROM productos p WHERE p.id=?`,
       [r.insertId]
@@ -131,7 +135,11 @@ export async function listarProductos(req, res) {
   );
   const [rows] = await pool.query(
     `SELECT p.id, p.nombre, p.sku, p.precio_unitario, p.costo_unitario, p.stock, 
-            COALESCE((SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1), p.foto_principal) as foto_principal,
+            COALESCE(
+              (SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1),
+              (SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id ORDER BY pf.id DESC LIMIT 1),
+              p.foto_principal
+            ) as foto_principal,
             p.esta_activo, p.creado_en
      FROM productos p ${where} ORDER BY p.id DESC LIMIT ? OFFSET ?`,
     [...vals, per, (page - 1) * per]
@@ -144,21 +152,25 @@ export async function listarProductos(req, res) {
 
 export async function detalleProducto(req, res) {
   const id = Number(req.params.id);
-  const [r] = await pool.execute(
+  const [rows] = await pool.execute(
     `SELECT p.id, p.nombre, p.descripcion, p.sku, p.precio_unitario, p.costo_unitario, p.stock, 
-            COALESCE((SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1), p.foto_principal) as foto_principal,
-            p.esta_activo, p.creado_en, p.actualizado_en
+            COALESCE(
+              (SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1),
+              (SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id ORDER BY pf.id DESC LIMIT 1),
+              p.foto_principal
+            ) as foto_principal,
+            p.esta_activo, p.creado_en, p.actualizado_en 
      FROM productos p WHERE p.id=?`,
     [id]
   );
-  if (!r.length) return res.status(404).json({ mensaje: "No encontrado" });
+  if (!rows.length) return res.status(404).json({ mensaje: "No encontrado" });
   const [f] = await pool.execute(
     `SELECT id,url,es_principal,orden
      FROM producto_fotos WHERE producto_id=? AND esta_activo=1
      ORDER BY es_principal DESC, orden ASC, id ASC`,
     [id]
   );
-  res.json({ data: { ...mapProducto(r[0]), fotos: f } });
+  res.json({ data: { ...mapProducto(rows[0]), fotos: f } });
 }
 
 export async function actualizarProducto(req, res) {
@@ -208,7 +220,11 @@ export async function actualizarProducto(req, res) {
     );
     const [rows] = await pool.execute(
       `SELECT p.id, p.nombre, p.descripcion, p.sku, p.precio_unitario, p.costo_unitario, p.stock, 
-              COALESCE((SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1), p.foto_principal) as foto_principal,
+              COALESCE(
+                (SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id AND pf.es_principal = 1 LIMIT 1),
+                (SELECT url FROM producto_fotos pf WHERE pf.producto_id = p.id ORDER BY pf.id DESC LIMIT 1),
+                p.foto_principal
+              ) as foto_principal,
               p.esta_activo, p.creado_en 
        FROM productos p WHERE p.id=?`,
       [id]
@@ -259,7 +275,11 @@ export async function agregarFotos(req, res) {
       );
 
       if (esPrincipal === 1) {
-        await pool.execute("UPDATE productos SET foto_principal=? WHERE id=?", [url, id]);
+        try {
+          await pool.execute("UPDATE productos SET foto_principal=? WHERE id=?", [url, id]);
+        } catch (err) {
+          console.warn("Could not auto-update productos.foto_principal, ignoring...", err.message);
+        }
       }
     }
     const [fotos] = await pool.execute(
@@ -338,10 +358,14 @@ export async function setFotoPrincipal(req, res) {
     await pool.execute("UPDATE producto_fotos SET es_principal=1 WHERE id=?", [
       fotoId,
     ]);
-    await pool.execute("UPDATE productos SET foto_principal=? WHERE id=?", [
-      f[0].url,
-      id,
-    ]);
+    try {
+      await pool.execute("UPDATE productos SET foto_principal=? WHERE id=?", [
+        f[0].url,
+        id,
+      ]);
+    } catch (err) {
+      console.warn("Could not update productos.foto_principal, might be too long. Ignoring...", err.message);
+    }
     res.json({ mensaje: "Principal actualizado", url: f[0].url });
   } catch (e) {
     res.status(400).json({ mensaje: e.message || "Error" });
