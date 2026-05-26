@@ -242,10 +242,17 @@ export async function agregarFotos(req, res) {
         await fs.unlink(f.path);
       } catch { }
 
+      const [existing] = await pool.execute("SELECT id FROM producto_fotos WHERE producto_id=? AND esta_activo=1 LIMIT 1", [id]);
+      const esPrincipal = existing.length === 0 ? 1 : 0;
+
       await pool.execute(
         "INSERT INTO producto_fotos (producto_id,url,es_principal,orden,esta_activo,creado_por,actualizado_por) VALUES (?,?,?,?,?,?,?)",
-        [id, url, 0, 1, 1, req.usuario?.sub || null, req.usuario?.sub || null]
+        [id, url, esPrincipal, 1, 1, req.usuario?.sub || null, req.usuario?.sub || null]
       );
+
+      if (esPrincipal === 1) {
+        await pool.execute("UPDATE productos SET foto_principal=? WHERE id=?", [url, id]);
+      }
     }
     const [fotos] = await pool.execute(
       "SELECT id,url,es_principal,orden FROM producto_fotos WHERE producto_id=? AND esta_activo=1 ORDER BY es_principal DESC, orden ASC, id ASC",
