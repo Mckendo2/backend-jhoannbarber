@@ -2,6 +2,14 @@ import { z } from "zod";
 import { pool } from "../db/mysql.js";
 import fs from "fs/promises";
 import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+
+// Configuración de Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const crearSchema = z.object({
   nombre: z.string().min(3).max(150),
@@ -29,9 +37,11 @@ function toUrl(fileName) {
 function toAbs(url) {
   return path.join(process.cwd(), url.replace(/^\//, ""));
 }
-async function borrarArchivo(url) {
+async function borrarArchivoLocal(url) {
   try {
-    await fs.unlink(toAbs(url));
+    if (url.startsWith('/upload/')) {
+      await fs.unlink(toAbs(url));
+    }
   } catch {}
 }
 
@@ -272,7 +282,6 @@ export async function agregarImagenServicio(req, res) {
   if (!req.file) return res.status(422).json({ mensaje: "Sin archivo" });
 
   try {
-    const url = toUrl(path.basename(req.file.path));
     const [old] = await pool.execute(
       "SELECT foto_principal FROM servicios WHERE id=?",
       [id]
@@ -280,10 +289,29 @@ export async function agregarImagenServicio(req, res) {
     if (!old.length)
       return res.status(404).json({ mensaje: "Servicio no encontrado" });
 
+    // Subir a Cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "jhoann-barber/servicios",
+    });
+    const url = result.secure_url;
+
+    // Eliminar el archivo local subido temporalmente por multer
+    try {
+      await fs.unlink(req.file.path);
+    } catch {}
+
+    // Eliminar foto anterior si existe (en local o en Cloudinary)
     if (old[0].foto_principal) {
-      try {
-        await borrarArchivo(old[0].foto_principal);
-      } catch {}
+      if (old[0].foto_principal.includes("cloudinary.com")) {
+        try {
+          const publicIdMatch = old[0].foto_principal.match(/\/v\d+\/(.+)\.[a-zA-Z]+$/);
+          if (publicIdMatch && publicIdMatch[1]) {
+            await cloudinary.uploader.destroy(publicIdMatch[1]);
+          }
+        } catch {}
+      } else {
+        await borrarArchivoLocal(old[0].foto_principal);
+      }
     }
 
     await pool.execute(
@@ -293,7 +321,11 @@ export async function agregarImagenServicio(req, res) {
 
     return res.status(201).json({ url });
   } catch (e) {
-    return res.status(400).json({ mensaje: e.message || "Error" });
+    // Intentar borrar archivo temporal si la subida falló
+    try {
+      await fs.unlink(req.file.path);
+    } catch {}
+    return res.status(400).json({ mensaje: e.message || "Error al subir a Cloudinary" });
   }
 }
 
@@ -315,9 +347,18 @@ export async function eliminarImagenServicio(req, res) {
       "UPDATE servicios SET foto_principal=NULL, actualizado_por=?, actualizado_en=NOW() WHERE id=?",
       [req.usuario?.sub || null, id]
     );
-    try {
-      await borrarArchivo(url);
-    } catch {}
+    
+    // Eliminar de Cloudinary o local
+    if (url.includes("cloudinary.com")) {
+      try {
+        const publicIdMatch = url.match(/\/v\d+\/(.+)\.[a-zA-Z]+$/);
+        if (publicIdMatch && publicIdMatch[1]) {
+          await cloudinary.uploader.destroy(publicIdMatch[1]);
+        }
+      } catch {}
+    } else {
+      await borrarArchivoLocal(url);
+    }
 
     return res.json({ mensaje: "Eliminado" });
   } catch (e) {
