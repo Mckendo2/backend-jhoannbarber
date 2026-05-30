@@ -55,9 +55,14 @@ async function renderPdfOrHtml(
     const executablePath = puppeteer.executablePath();
     try {
       const fs = await import('fs');
-      fs.chmodSync(executablePath, 0o755);
+      const { dirname, join } = await import('path');
+      const dir = dirname(executablePath);
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        fs.chmodSync(join(dir, file), 0o755);
+      }
     } catch (permErr) {
-      console.error("No se pudo dar permisos de ejecución a Chrome:", permErr);
+      console.error("No se pudo dar permisos al directorio de Chrome:", permErr);
     }
 
     browser = await puppeteer.launch({
