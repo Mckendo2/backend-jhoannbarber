@@ -39,59 +39,24 @@ async function renderPdfOrHtml(
     "reportes",
     "report-base.ejs"
   );
-  const html = await ejs.renderFile(templatePath, {
-    title,
-    rows: rowsFormatted,
-    headers,
-    desde: desdeVal,
-    hasta: hastaVal,
-    generatedAt: dayjs().format("YYYY-MM-DD HH:mm"),
-    negocio: NEGOCIO,
-    generatedBy: req.usuario?.correo_electronico || "Sistema",
-  });
-
-  let browser;
   try {
-    const executablePath = puppeteer.executablePath();
-    try {
-      const fs = await import('fs');
-      const { dirname, join } = await import('path');
-      const dir = dirname(executablePath);
-      const files = fs.readdirSync(dir);
-      for (const file of files) {
-        fs.chmodSync(join(dir, file), 0o755);
-      }
-    } catch (permErr) {
-      console.error("No se pudo dar permisos al directorio de Chrome:", permErr);
-    }
+    const html = await ejs.renderFile(templatePath, {
+      title,
+      rows: rowsFormatted,
+      headers,
+      desde: desdeVal,
+      hasta: hastaVal,
+      generatedAt: dayjs().format("YYYY-MM-DD HH:mm"),
+      negocio: NEGOCIO,
+      generatedBy: req.usuario?.correo_electronico || "Sistema",
+      extra: typeof extra !== 'undefined' ? extra : {}
+    });
 
-    browser = await puppeteer.launch({
-      executablePath,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      headless: true,
-      defaultViewport: { width: 1024, height: 768 },
-      timeout: 30000,
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 30000 });
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "15mm", bottom: "15mm", left: "12mm", right: "12mm" },
-    });
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${templateName}-${Date.now()}.pdf"`
-    );
-    return res.send(pdfBuffer);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(html);
   } catch (e) {
-    console.error("PDF GENERATION ERROR:", e);
-    return res.status(500).json({ mensaje: "Error interno al generar PDF", error: e.message });
-  } finally {
-    try {
-      if (browser) await browser.close();
-    } catch (err) {}
+    console.error("HTML GENERATION ERROR:", e);
+    return res.status(500).json({ mensaje: "Error interno al generar el reporte", error: e.message });
   }
 }
 
