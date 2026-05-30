@@ -52,7 +52,16 @@ async function renderPdfOrHtml(
 
   let browser;
   try {
+    const executablePath = puppeteer.executablePath();
+    try {
+      const fs = await import('fs');
+      fs.chmodSync(executablePath, 0o755);
+    } catch (permErr) {
+      console.error("No se pudo dar permisos de ejecución a Chrome:", permErr);
+    }
+
     browser = await puppeteer.launch({
+      executablePath,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
       headless: true,
       defaultViewport: { width: 1024, height: 768 },
