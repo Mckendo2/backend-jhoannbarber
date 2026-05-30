@@ -3,7 +3,8 @@ import ejs from "ejs";
 import puppeteer from "puppeteer";
 import { pool } from "../db/mysql.js";
 import dayjs from "dayjs";
-
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 function parseDateRange(q) {
   const from = q.from || q.start || q.desde;
   const to = q.to || q.end || q.hasta;
@@ -29,8 +30,11 @@ async function renderPdfOrHtml(
   desdeVal,
   hastaVal
 ) {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
   const templatePath = path.resolve(
-    "src",
+    __dirname,
+    "..",
     "templates",
     "reportes",
     "report-base.ejs"
@@ -55,7 +59,7 @@ async function renderPdfOrHtml(
       timeout: 30000,
     });
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0", timeout: 30000 });
+    await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 30000 });
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
@@ -68,8 +72,8 @@ async function renderPdfOrHtml(
     );
     return res.send(pdfBuffer);
   } catch (e) {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    return res.status(200).send(html);
+    console.error("PDF GENERATION ERROR:", e);
+    return res.status(500).json({ mensaje: "Error interno al generar PDF", error: e.message });
   } finally {
     try {
       if (browser) await browser.close();
