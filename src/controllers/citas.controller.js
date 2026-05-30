@@ -376,6 +376,10 @@ export async function citasSemana(req, res) {
          COALESCE(NULLIF(CONCAT(IFNULL(u.nombres,''),' ',IFNULL(u.apellidos,'')),' '),u.correo_electronico) AS barbero_nombre,
          c.cliente_id,
          COALESCE(NULLIF(CONCAT(IFNULL(cl.nombres,''),' ',IFNULL(cl.apellidos,'')),' '),cl.correo_electronico) AS cliente_nombre,
+         cl.nombres AS cliente_nombres,
+         cl.apellidos AS cliente_apellidos,
+         cl.correo_electronico AS cliente_correo,
+         cl.telefono AS cliente_telefono,
          GROUP_CONCAT(s.nombre SEPARATOR '||') AS servicios_nombres,
          GROUP_CONCAT(cs.servicio_id) AS servicios_ids
        FROM citas c
